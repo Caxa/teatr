@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Создать афишу</title>
+    <style>
+        /* аналогичные стили как в create_performance.html */
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Создать новую афишу</h1>
+        
+        <form method="POST" action="/admin/create_poster">
+            <div class="form-group">
+                <label>Спектакль:</label>
+                <select name="performance_id" required>
+                    {{range .Performances}}
+                    <option value="{{.ID}}">{{.Title}}</option>
+                    {{end}}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Сцена:</label>
+                <select name="scene_id" required>
+                    {{range .Scenes}}
+                    <option value="{{.ID}}">{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Дата и время:</label>
+                <input type="datetime-local" name="start_time" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Базовая цена билета:</label>
+                <input type="number" name="base_price" required>
+            </div>
+            
+            <button type="submit">Создать афишу</button>
+        </form>
+    </div>
+</body>
+</html>

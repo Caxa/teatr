@@ -3,27 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Театральная система</title>
+    <title>Театральная система "Кола"</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            background-color: #f9f3e9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            text-align: center;
+        }
+        h1 {
+            color: #8b0000;
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #8b0000;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            margin: 1rem;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #6b0000;
+        }
+        form {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 2rem 0;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input[type="number"],
+        input[type="date"] {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button[type="submit"] {
+            background-color: #8b0000;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        button[type="submit"]:hover {
+            background-color: #6b0000;
+        }
+        .features {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+        .feature {
+            flex: 1;
+            min-width: 200px;
+            margin: 1rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .feature h3 {
+            color: #8b0000;
+            margin-top: 0;
+        }
+        footer {
+            margin-top: 3rem;
+            padding: 1rem;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Добро пожаловать в театральную систему</h1>
-        <a href="/performances" class="btn">Посмотреть спектакли</a>
+        <h1>Добро пожаловать в театральную систему "Кола"</h1>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>Спектакли</h3>
+                <p>Полный репертуар театра с описаниями и актерским составом</p>
+                <a href="/performances" class="btn">Перейти</a>
+            </div>
+            
+            <div class="feature">
+                <h3>Афиша</h3>
+                <p>Расписание спектаклей на выбранный период</p>
+                <a href="/posters" class="btn">Перейти</a>
+            </div>
+            
+            <div class="feature">
+                <h3>Бронирование</h3>
+                <p>Онлайн-бронирование билетов на спектакли</p>
+                <a href="/booking" class="btn">Перейти</a>
+            </div>
+        </div>
 
         <form action="/actor_plays" method="GET">
+            <h2>Поиск пьес по актёру</h2>
             <label for="actor_id">Введите ID актёра:</label>
-            <input type="number" name="actor_id" required>
+            <input type="number" name="actor_id" required min="1" placeholder="Например: 42">
             <button type="submit">Найти пьесы</button>
         </form>
 
         <form action="/schedule" method="GET">
+            <h2>Афиша на период</h2>
             <label for="start">Дата начала:</label>
-            <input type="date" name="start" required>
+            <input type="date" name="start" required value="2025-06-23" min="2025-06-23">
+            
             <label for="end">Дата окончания:</label>
-            <input type="date" name="end" required>
+            <input type="date" name="end" required value="2025-06-30" min="2025-06-23">
+            
             <button type="submit">Показать афишу</button>
         </form>
     </div>
+
+    <footer>
+        <p>Театральная система "Кола" © 2025 | Контакты: info@kola-theatre.ru</p>
+    </footer>
 </body>
 </html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Бронирование билетов</title>
+    <style>
+        .seat-map { 
+            display: grid; 
+            grid-template-columns: repeat(10, 1fr); 
+            gap: 10px; 
+            margin: 20px 0;
+        }
+        .seat { 
+            width: 40px; 
+            height: 40px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border: 1px solid #ccc; 
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .seat.free { background-color: #aaffaa; }
+        .seat.occupied { 
+            background-color: #ffaaaa; 
+            cursor: not-allowed;
+            position: relative;
+        }
+        .seat.occupied:after {
+            content: "✗";
+            position: absolute;
+            color: #8b0000;
+            font-size: 16px;
+        }
+        .seat.selected { 
+            background-color: #5555ff; 
+            color: white;
+            font-weight: bold;
+        }
+        .seat-price {
+            font-size: 10px;
+            color: #555;
+            margin-top: 3px;
+        }
+        #booking-form { 
+            margin-top: 20px; 
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            display: none;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button[type="submit"] {
+            background-color: #8b0000;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #selected-seats {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Выбор мест на {{.PerformanceTitle}}</h1>
+    <p>Дата: {{.StartTime.Format "02.01.2006 15:04"}}</p>
+    <p>Зал: {{.SceneName}}</p>
+    <p>Цены: {{.MinPrice}} - {{.MaxPrice}} руб.</p>
+
+    <div class="seat-map">
+        {{range .Seats}}
+        <div class="seat {{if .IsFree}}free{{else}}occupied{{end}}" 
+             data-seat="{{.Seat}}" data-price="{{.Price}}"
+             {{if .IsFree}}onclick="selectSeat(this)"{{else}}title="Место уже занято: {{.OwnerName}}"{{end}}>
+            {{.Seat}}
+            <div class="seat-price">{{.Price}} руб.</div>
+        </div>
+        {{end}}
+    </div>
+
+    <div id="selected-seats"></div>
+
+    <form id="booking-form" method="POST" action="/book">
+        <input type="hidden" name="poster_id" value="{{.PosterID}}">
+        <input type="hidden" name="selected_seats" id="selected_seats_input">
+        
+        <div class="form-group">
+            <label>ФИО:</label>
+            <input type="text" name="full_name" required>
+        </div>
+        <div class="form-group">
+            <label>Email:</label>
+            <input type="email" name="email">
+        </div>
+        <button type="submit">Забронировать</button>
+    </form>
+
+    <script>
+        const selectedSeats = new Set();
+        let totalPrice = 0;
+
+        function selectSeat(element) {
+            const seat = element.dataset.seat;
+            const price = parseInt(element.dataset.price);
+
+            if (selectedSeats.has(seat)) {
+                selectedSeats.delete(seat);
+                totalPrice -= price;
+                element.classList.remove('selected');
+            } else {
+                if (selectedSeats.size < 6) {
+                    selectedSeats.add(seat);
+                    totalPrice += price;
+                    element.classList.add('selected');
+                } else {
+                    alert('Максимальное количество мест для бронирования - 6');
+                }
+            }
+
+            updateBookingForm();
+        }
+
+        function updateBookingForm() {
+            const form = document.getElementById('booking-form');
+            const selectedInput = document.getElementById('selected_seats_input');
+            const display = document.getElementById('selected-seats');
+
+            if (selectedSeats.size > 0) {
+                form.style.display = 'block';
+                selectedInput.value = Array.from(selectedSeats).join(',');
+                
+                display.innerHTML = `
+                    <h3>Вы выбрали места:</h3>
+                    <p>${Array.from(selectedSeats).join(', ')}</p>
+                    <p><strong>Общая стоимость:</strong> ${totalPrice} руб.</p>
+                `;
+            } else {
+                form.style.display = 'none';
+                display.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>

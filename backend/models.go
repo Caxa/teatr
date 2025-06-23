@@ -15,25 +15,6 @@ type Director struct {
 	FullName string
 }
 
-type Scene struct {
-	ID       int
-	Name     string
-	Capacity int
-	Address  string
-}
-
-type Performance struct {
-	ID     int
-	Title  string
-	PlayID int
-}
-
-type Actor struct {
-	ID       int
-	FullName string
-	Troupe   string
-}
-
 type PerformanceRole struct {
 	ID            int
 	Name          string
@@ -63,4 +44,27 @@ type ActorRole struct {
 	ActorID           int
 	PosterID          int
 	PerformanceRoleID int
+}
+
+// Новые структуры для данных
+type Performance struct {
+	ID          int
+	Title       string
+	Description string
+	Duration    int
+	AgeRating   string
+}
+
+type Scene struct {
+	ID       int
+	Name     string
+	Capacity int
+	Address  string
+}
+
+type Actor struct {
+	ID        int
+	FullName  string
+	BirthDate string
+	Bio       string
 }
