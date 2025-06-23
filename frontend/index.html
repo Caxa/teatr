@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Театральная система</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Добро пожаловать в театральную систему</h1>
+        <a href="/performances" class="btn">Посмотреть спектакли</a>
+
+        <form action="/actor_plays" method="GET">
+            <label for="actor_id">Введите ID актёра:</label>
+            <input type="number" name="actor_id" required>
+            <button type="submit">Найти пьесы</button>
+        </form>
+
+        <form action="/schedule" method="GET">
+            <label for="start">Дата начала:</label>
+            <input type="date" name="start" required>
+            <label for="end">Дата окончания:</label>
+            <input type="date" name="end" required>
+            <button type="submit">Показать афишу</button>
+        </form>
+    </div>
+</body>
+</html>

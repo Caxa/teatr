@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Билеты</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Доступные билеты</h1>
+        <div class="ticket-list">
+            {{range .Tickets}}
+            <div class="ticket-card">
+                <h3>Роль: {{.RoleName}}</h3>
+                <p>Место: {{.Seat}}</p>
+                <p>Цена: {{.Price}} руб.</p>
+                <a href="/book?ticket_id={{.ID}}" class="btn">Забронировать</a>
+            </div>
+            {{end}}
+        </div>
+        <a href="/posters?performance_id={{.PerformanceID}}" class="btn">Назад к афишам</a>
+    </div>
+</body>
+</html>

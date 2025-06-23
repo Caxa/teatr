@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Афиша за период</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Афиша спектаклей за период</h1>
+        {{if .}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Сцена</th>
+                    <th>Название спектакля</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .}}
+                <tr>
+                    <td>{{.StartTime.Format "02.01.2006 15:04"}}</td>
+                    <td>{{.SceneName}}</td>
+                    <td>{{.Title}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p>Нет представлений в заданный период.</p>
+        {{end}}
+        <a href="/" class="btn">На главную</a>
+    </div>
+</body>
+</html>

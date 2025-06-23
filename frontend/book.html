@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бронирование</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Бронирование билета</h1>
+        <div class="ticket-info">
+            <h3>Роль: {{.RoleName}}</h3>
+            <p>Место: {{.Seat}}</p>
+            <p>Цена: {{.Price}} руб.</p>
+        </div>
+        
+        <form method="POST" action="/book">
+            <input type="hidden" name="ticket_id" value="{{.ID}}">
+            <div class="form-group">
+                <label for="full_name">Ваше полное имя:</label>
+                <input type="text" id="full_name" name="full_name" required>
+            </div>
+            <button type="submit" class="btn">Забронировать</button>
+        </form>
+        
+        <a href="/tickets?poster_id={{.PosterID}}" class="btn">Назад к билетам</a>
+    </div>
+</body>
+</html>
