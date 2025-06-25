@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Афиши спектакля</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Афиши спектакля</h1>
+        <div class="posters-list">
+            {{if .Posters}}
+                {{range .Posters}}
+                <div class="poster-card">
+                    <p><strong>Дата и время:</strong> {{.StartTime.Format "02.01.2006 15:04"}}</p>
+                    <p><strong>Место проведения:</strong> {{.SceneName}}</p>
+                    <a href="/booking?poster_id={{.ID}}" class="btn">Посмотреть билеты</a>
+                </div>
+                {{end}}
+            {{else}}
+                <p>На данный момент нет доступных афиш для этого спектакля.</p>
+            {{end}}
+        </div>
+        <a href="/performances" class="btn">Назад к списку спектаклей</a>
+    </div>
+</body>
+</html>
