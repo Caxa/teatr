@@ -2,21 +2,24 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Пьесы с участием актёра</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пьесы актёра</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Пьесы с участием выбранного актёра</h1>
-        {{if .}}
-        <ul>
-            {{range .}}
-            <li>{{.}}</li>
-            {{end}}
-        </ul>
+        <h1>Пьесы с участием актёра: {{.ActorName}}</h1>
+        
+        {{if .Plays}}
+            <ul class="plays-list">
+                {{range .Plays}}
+                <li>{{.}}</li>
+                {{end}}
+            </ul>
         {{else}}
-        <p>Нет данных по этому актёру.</p>
+            <p>Не найдено пьес с участием этого актёра.</p>
         {{end}}
+        
         <a href="/" class="btn">На главную</a>
     </div>
 </body>

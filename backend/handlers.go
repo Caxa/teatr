@@ -102,21 +102,23 @@ func TicketsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ActorPlaysHandler(w http.ResponseWriter, r *http.Request) {
-	actorID := r.URL.Query().Get("actor_id")
-	if actorID == "" {
-		http.Error(w, "Actor ID is required", http.StatusBadRequest)
+	actorName := r.URL.Query().Get("actor_full_name")
+	if actorName == "" {
+		http.Error(w, "Имя актёра обязательно", http.StatusBadRequest)
 		return
 	}
 
+	// Используем LIKE для нечеткого поиска
 	query := `
-		SELECT DISTINCT pl.play_title
-		FROM play pl
-		JOIN performance pf ON pf.id_play = pl.id_play
-		JOIN performance_role pr ON pr.id_performance = pf.id_performance
-		JOIN actor_role ar ON ar.performance_role_id = pr.performance_role_id
-		WHERE ar.id_actor = $1`
+        SELECT DISTINCT pl.play_title
+        FROM play pl
+        JOIN performance pf ON pf.id_play = pl.id_play
+        JOIN performance_role pr ON pr.id_performance = pf.id_performance
+        JOIN actor_role ar ON ar.performance_role_id = pr.performance_role_id
+        JOIN actor a ON a.id_actor = ar.id_actor
+        WHERE a.actor_full_name LIKE '%' || $1 || '%'`
 
-	rows, err := db.Query(query, actorID)
+	rows, err := db.Query(query, actorName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -133,7 +135,15 @@ func ActorPlaysHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		plays = append(plays, title)
 	}
-	tmpl.ExecuteTemplate(w, "actor_plays.html", plays)
+
+	// Добавляем имя актера в данные для шаблона
+	tmpl.ExecuteTemplate(w, "actor_plays.html", struct {
+		ActorName string
+		Plays     []string
+	}{
+		ActorName: actorName,
+		Plays:     plays,
+	})
 }
 
 func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
