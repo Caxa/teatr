@@ -72,7 +72,7 @@ type ActorRole struct {
 	PerformanceRoleID int
 }
 
-// Новые структуры для данных
+// Performance структура для хранения данных о спектакле
 type Performance struct {
 	ID          int
 	Title       string
@@ -81,16 +81,15 @@ type Performance struct {
 	AgeRating   string
 }
 
+// Actor структура для хранения данных об актере
+type Actor struct {
+	ID       int
+	FullName string
+	Troupe   string
+}
 type Scene struct {
 	ID       int
 	Name     string
 	Capacity int
 	Address  string
-}
-
-type Actor struct {
-	ID        int
-	FullName  string
-	BirthDate string
-	Bio       string
 }

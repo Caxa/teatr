@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Управление актерами</title>
+    <style>
+        /* Стили остаются такими же, как в предыдущем примере */
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px 12px; }
+        .hidden { display: none; }
+        /* ... остальные стили ... */
+    </style>
+</head>
+<body>
+    <h1>Управление актерами</h1>
+    
+    <!-- Навигация -->
+    <div>
+        <a href="/admin/actors?mode=list" class="button">Список актеров</a>
+        <a href="/admin/actors?mode=create" class="button">Добавить актера</a>
+    </div>
+    
+    <!-- Режим просмотра списка -->
+    <div id="list-mode" {{if ne .Mode "list"}}class="hidden"{{end}}>
+        <h2>Список актеров</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Полное имя</th>
+                    <th>Труппа</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Actors}}
+                <tr>
+                    <td>{{.ID}}</td>
+                    <td>{{.FullName}}</td>
+                    <td>{{.Troupe}}</td>
+                    <td class="action-links">
+                        <a href="/admin/actors?mode=edit&id={{.ID}}" class="button">Редактировать</a>
+                        <form method="POST" action="/admin/delete_actor">
+                            <input type="hidden" name="id" value="{{.ID}}">
+                            <button type="submit" class="button delete">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Режим создания актера -->
+    <div id="create-mode" {{if ne .Mode "create"}}class="hidden"{{end}}>
+        <h2>Добавить нового актера</h2>
+        <form method="POST" action="/admin/create_actor">
+            <label>Полное имя: <input type="text" name="full_name" required></label>
+            <label>Труппа: <input type="text" name="troupe" required></label>
+            <button type="submit">Сохранить</button>
+            <a href="/admin/actors?mode=list" class="button">Отмена</a>
+        </form>
+    </div>
+    
+    <!-- Режим редактирования актера -->
+    <div id="edit-mode" {{if ne .Mode "edit"}}class="hidden"{{end}}>
+        <h2>Редактировать актера</h2>
+        <form method="POST" action="/admin/edit_actor">
+            <input type="hidden" name="id" value="{{.Actor.ID}}">
+            <label>Полное имя: <input type="text" name="full_name" value="{{.Actor.FullName}}" required></label>
+            <label>Труппа: <input type="text" name="troupe" value="{{.Actor.Troupe}}" required></label>
+            <button type="submit">Сохранить изменения</button>
+            <a href="/admin/actors?mode=list" class="button">Отмена</a>
+        </form>
+    </div>
+</body>
+</html>

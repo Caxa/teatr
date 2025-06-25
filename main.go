@@ -40,11 +40,19 @@ func registerHandlers() {
 	http.HandleFunc("/admin", backend.AdminHandler)
 	http.HandleFunc("/admin/create_performance", backend.CreatePerformanceHandler)
 	http.HandleFunc("/admin/create_scene", backend.CreateSceneHandler)
-	http.HandleFunc("/admin/create_actor", backend.CreateActorHandler)
+	//http.HandleFunc("/admin/create_actor", backend.CreateActorHandler)
 	http.HandleFunc("/admin/create_poster", backend.CreatePosterHandler)
 	http.HandleFunc("/admin/generate_tickets", backend.GenerateTicketsHandler)
 	http.HandleFunc("/admin/execute-sql", backend.ExecuteSQLHandler)
-
+	http.HandleFunc("/admin/actors", backend.ActorsHandler)
+	http.HandleFunc("/admin/create_actor", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/actors?mode=create", http.StatusSeeOther)
+	})
+	http.HandleFunc("/admin/edit_actor", func(w http.ResponseWriter, r *http.Request) {
+		id := r.FormValue("id")
+		http.Redirect(w, r, "/admin/actors?mode=edit&id="+id, http.StatusSeeOther)
+	})
+	http.HandleFunc("/admin/delete_actor", backend.DeleteActorHandler)
 }
 
 func getEnv(key, defaultValue string) string {

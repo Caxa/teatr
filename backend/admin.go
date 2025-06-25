@@ -109,26 +109,6 @@ func CreateSceneHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func CreateActorHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		fullName := r.FormValue("full_name")
-		birthDate := r.FormValue("birth_date")
-		bio := r.FormValue("bio")
-
-		_, err := db.Exec(
-			"INSERT INTO actor (actor_full_name, birth_date, bio) VALUES ($1, $2, $3)",
-			fullName, birthDate, bio)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/admin", http.StatusSeeOther)
-	} else {
-		tmpl.ExecuteTemplate(w, "create_actor.html", nil)
-	}
-}
-
 func CreatePosterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		// Получаем списки для выпадающих меню
