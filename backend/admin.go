@@ -1,77 +1,99 @@
-package main
+package backend
 
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
-
-	_ "github.com/lib/pq"
 )
 
 var db *sql.DB
 var tmpl = template.Must(template.ParseGlob("frontend/*.html"))
 
-func main() {
-	host := getEnv("DB_HOST", "localhost")
-	port := getEnv("DB_PORT", "5432")
-	user := getEnv("DB_USER", "postgres")
-	password := getEnv("DB_PASSWORD", "1234")
-	dbname := getEnv("DB_NAME", "kola")
-
-	dbConn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-
-	var err error
-	db, err = sql.Open("postgres", dbConn)
+func AdminHandler(w http.ResponseWriter, r *http.Request) {
+	// Получаем список спектаклей для отображения
+	rows, err := db.Query("SELECT id_performance, performance_title FROM performance")
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	defer db.Close()
+	defer rows.Close()
 
-	err = db.Ping()
+	var performances []struct {
+		ID    int
+		Title string
+	}
+	for rows.Next() {
+		var p struct {
+			ID    int
+			Title string
+		}
+		err := rows.Scan(&p.ID, &p.Title)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		performances = append(performances, p)
+	}
+
+	// Получаем список афиш для отображения
+	posterRows, err := db.Query(`
+		SELECT p.id_poster, pf.performance_title, p.start_time 
+		FROM poster p
+		JOIN performance pf ON p.id_performance = pf.id_performance
+		ORDER BY p.start_time`)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer posterRows.Close()
+
+	var posters []struct {
+		ID        int
+		Title     string
+		StartTime time.Time
+	}
+	for posterRows.Next() {
+		var p struct {
+			ID        int
+			Title     string
+			StartTime time.Time
+		}
+		err := posterRows.Scan(&p.ID, &p.Title, &p.StartTime)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		posters = append(posters, p)
 	}
 
-	http.HandleFunc("/", indexHandler)
-	http.HandleFunc("/performances", performancesHandler)
-	http.HandleFunc("/posters", postersHandler)
-	http.HandleFunc("/tickets", ticketsHandler)
-	http.HandleFunc("/book", bookHandler)
-	http.HandleFunc("/booking", bookingHandler)
-	http.HandleFunc("/actor_plays", actorPlaysHandler)
-	http.HandleFunc("/schedule", scheduleHandler)
-	//admin
-	http.HandleFunc("/admin", adminHandler)
-	http.HandleFunc("/admin/create_performance", createPerformanceHandler)
-	http.HandleFunc("/admin/create_scene", createSceneHandler)
-	http.HandleFunc("/admin/create_actor", createActorHandler)
-	http.HandleFunc("/admin/create_poster", createPosterHandler)
-	http.HandleFunc("/admin/generate_tickets", generateTicketsHandler)
+	// Передаем данные в шаблон
+	data := struct {
+		Performances []struct {
+			ID    int
+			Title string
+		}
+		Posters []struct {
+			ID        int
+			Title     string
+			StartTime time.Time
+		}
+	}{
+		Performances: performances,
+		Posters:      posters,
+	}
 
-	port = getEnv("PORT", "8080")
-	log.Printf("Server running on http://localhost:%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	tmpl.ExecuteTemplate(w, "admin.html", data)
 }
 
-func getEnv(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
-}
-
-func indexHandler(w http.ResponseWriter, r *http.Request) {
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "index.html", nil)
 }
 
-func performancesHandler(w http.ResponseWriter, r *http.Request) {
+func PerformancesHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT id_performance, performance_title FROM performance")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -99,7 +121,7 @@ func performancesHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "performances.html", performances)
 }
 
-func postersHandler(w http.ResponseWriter, r *http.Request) {
+func PostersHandler(w http.ResponseWriter, r *http.Request) {
 	performanceID := r.URL.Query().Get("performance_id")
 	if performanceID == "" {
 		http.Error(w, "Performance ID is required", http.StatusBadRequest)
@@ -152,7 +174,7 @@ func postersHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func ticketsHandler(w http.ResponseWriter, r *http.Request) {
+func TicketsHandler(w http.ResponseWriter, r *http.Request) {
 	posterID := r.URL.Query().Get("poster_id")
 	if posterID == "" {
 		http.Error(w, "Poster ID is required", http.StatusBadRequest)
@@ -210,7 +232,7 @@ func ticketsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func actorPlaysHandler(w http.ResponseWriter, r *http.Request) {
+func ActorPlaysHandler(w http.ResponseWriter, r *http.Request) {
 	actorID := r.URL.Query().Get("actor_id")
 	if actorID == "" {
 		http.Error(w, "Actor ID is required", http.StatusBadRequest)
@@ -245,7 +267,7 @@ func actorPlaysHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "actor_plays.html", plays)
 }
 
-func scheduleHandler(w http.ResponseWriter, r *http.Request) {
+func ScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	start := r.URL.Query().Get("start")
 	end := r.URL.Query().Get("end")
 
@@ -303,7 +325,7 @@ func scheduleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	tmpl.ExecuteTemplate(w, "schedule.html", schedule)
 }
-func bookingHandler(w http.ResponseWriter, r *http.Request) {
+func BookingHandler(w http.ResponseWriter, r *http.Request) {
 	posterID := r.URL.Query().Get("poster_id")
 	if posterID == "" {
 		http.Error(w, "Poster ID is required", http.StatusBadRequest)
@@ -398,7 +420,7 @@ func bookingHandler(w http.ResponseWriter, r *http.Request) {
 
 	tmpl.ExecuteTemplate(w, "booking.html", data)
 }
-func bookHandler(w http.ResponseWriter, r *http.Request) {
+func BookHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -459,33 +481,7 @@ func bookHandler(w http.ResponseWriter, r *http.Request) {
 		}())
 }
 
-// Обработчики административной панели
-func adminHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl.ExecuteTemplate(w, "admin.html", nil)
-}
-
-func createPerformanceHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		title := r.FormValue("title")
-		description := r.FormValue("description")
-		duration := r.FormValue("duration")
-		ageRating := r.FormValue("age_rating")
-
-		_, err := db.Exec(
-			"INSERT INTO performance (performance_title, description, duration_minutes, age_rating) VALUES ($1, $2, $3, $4)",
-			title, description, duration, ageRating)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/admin", http.StatusSeeOther)
-	} else {
-		tmpl.ExecuteTemplate(w, "create_performance.html", nil)
-	}
-}
-
-func createSceneHandler(w http.ResponseWriter, r *http.Request) {
+func CreateSceneHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		name := r.FormValue("name")
 		capacity := r.FormValue("capacity")
@@ -505,7 +501,7 @@ func createSceneHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func createActorHandler(w http.ResponseWriter, r *http.Request) {
+func CreateActorHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		fullName := r.FormValue("full_name")
 		birthDate := r.FormValue("birth_date")
@@ -525,39 +521,112 @@ func createActorHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func generateTicketsHandler(w http.ResponseWriter, r *http.Request) {
+func CreatePosterHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		// Получаем списки для выпадающих меню
+		performances, _ := db.Query("SELECT id_performance, performance_title FROM performance")
+		scenes, _ := db.Query("SELECT id_scene, scene_name FROM scene")
+
+		data := struct {
+			Performances *sql.Rows
+			Scenes       *sql.Rows
+		}{
+			Performances: performances,
+			Scenes:       scenes,
+		}
+
+		tmpl.ExecuteTemplate(w, "create_poster.html", data)
+	} else if r.Method == "POST" {
+		performanceID := r.FormValue("performance_id")
+		sceneID := r.FormValue("scene_id")
+		startTime := r.FormValue("start_time")
+		basePrice := r.FormValue("base_price")
+
+		_, err := db.Exec(
+			"INSERT INTO poster (id_performance, id_scene, start_time, base_price) VALUES ($1, $2, $3, $4)",
+			performanceID, sceneID, startTime, basePrice)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/admin", http.StatusSeeOther)
+	}
+}
+
+func CreatePerformanceHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
+		// Обработка отправки формы
+		title := r.FormValue("title")
+		description := r.FormValue("description")
+		duration := r.FormValue("duration")
+		ageRating := r.FormValue("age_rating")
+
+		// Валидация данных
+		if title == "" {
+			http.Error(w, "Название спектакля обязательно", http.StatusBadRequest)
+			return
+		}
+
+		// Преобразование duration в число
+		durationInt, err := strconv.Atoi(duration)
+		if err != nil {
+			http.Error(w, "Неверный формат продолжительности", http.StatusBadRequest)
+			return
+		}
+
+		// Вставка в базу данных
+		_, err = db.Exec(
+			"INSERT INTO performance (performance_title, description, duration_minutes, age_rating) VALUES ($1, $2, $3, $4)",
+			title, description, durationInt, ageRating)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Перенаправление обратно в админку
+		http.Redirect(w, r, "/admin", http.StatusSeeOther)
+	} else {
+		// Отображение формы
+		tmpl.ExecuteTemplate(w, "create_performance.html", nil)
+	}
+}
+
+func GenerateTicketsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		// Обработка отправки формы
 		posterID := r.FormValue("poster_id")
 		seatsCountStr := r.FormValue("seats_count")
 		pricePattern := r.FormValue("price_pattern") // "uniform" или "gradient"
 		minPriceStr := r.FormValue("min_price")
 		maxPriceStr := r.FormValue("max_price")
 
-		// Конвертируем строковые параметры в числа
+		// Валидация и преобразование данных
+		if posterID == "" || seatsCountStr == "" {
+			http.Error(w, "Необходимо указать афишу и количество мест", http.StatusBadRequest)
+			return
+		}
+
 		seatsCount, err := strconv.Atoi(seatsCountStr)
 		if err != nil {
-			http.Error(w, "Неверное количество мест", http.StatusBadRequest)
+			http.Error(w, "Неверный формат количества мест", http.StatusBadRequest)
 			return
 		}
 
 		minPrice, err := strconv.Atoi(minPriceStr)
 		if err != nil {
-			http.Error(w, "Неверная минимальная цена", http.StatusBadRequest)
+			http.Error(w, "Неверный формат минимальной цены", http.StatusBadRequest)
 			return
 		}
 
 		maxPrice, err := strconv.Atoi(maxPriceStr)
 		if err != nil {
-			http.Error(w, "Неверная максимальная цена", http.StatusBadRequest)
+			http.Error(w, "Неверный формат максимальной цены", http.StatusBadRequest)
 			return
 		}
 
-		// Проверяем валидность параметров
-		if seatsCount <= 0 {
-			http.Error(w, "Количество мест должно быть положительным", http.StatusBadRequest)
-			return
-		}
-
+		// Проверка валидности цен
 		if minPrice <= 0 || maxPrice <= 0 {
 			http.Error(w, "Цены должны быть положительными", http.StatusBadRequest)
 			return
@@ -603,9 +672,15 @@ func generateTicketsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// Перенаправление обратно в админку
 		http.Redirect(w, r, "/admin", http.StatusSeeOther)
 	} else {
-		posters, err := db.Query("SELECT id_poster, performance_title FROM poster p JOIN performance pf ON p.id_performance = pf.id_performance")
+		// Получение списка афиш для выпадающего меню
+		posters, err := db.Query(`
+			SELECT p.id_poster, pf.performance_title, p.start_time 
+			FROM poster p
+			JOIN performance pf ON p.id_performance = pf.id_performance
+			ORDER BY p.start_time`)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -613,53 +688,24 @@ func generateTicketsHandler(w http.ResponseWriter, r *http.Request) {
 		defer posters.Close()
 
 		var posterList []struct {
-			ID    int
-			Title string
+			ID        int
+			Title     string
+			StartTime time.Time
 		}
 		for posters.Next() {
 			var p struct {
-				ID    int
-				Title string
+				ID        int
+				Title     string
+				StartTime time.Time
 			}
-			if err := posters.Scan(&p.ID, &p.Title); err != nil {
+			if err := posters.Scan(&p.ID, &p.Title, &p.StartTime); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			posterList = append(posterList, p)
 		}
 
+		// Отображение формы
 		tmpl.ExecuteTemplate(w, "generate_tickets.html", posterList)
-	}
-}
-func createPosterHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		// Получаем списки для выпадающих меню
-		performances, _ := db.Query("SELECT id_performance, performance_title FROM performance")
-		scenes, _ := db.Query("SELECT id_scene, scene_name FROM scene")
-
-		data := struct {
-			Performances *sql.Rows
-			Scenes       *sql.Rows
-		}{
-			Performances: performances,
-			Scenes:       scenes,
-		}
-
-		tmpl.ExecuteTemplate(w, "create_poster.html", data)
-	} else if r.Method == "POST" {
-		performanceID := r.FormValue("performance_id")
-		sceneID := r.FormValue("scene_id")
-		startTime := r.FormValue("start_time")
-		basePrice := r.FormValue("base_price")
-
-		_, err := db.Exec(
-			"INSERT INTO poster (id_performance, id_scene, start_time, base_price) VALUES ($1, $2, $3, $4)",
-			performanceID, sceneID, startTime, basePrice)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/admin", http.StatusSeeOther)
 	}
 }
