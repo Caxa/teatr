@@ -3,7 +3,9 @@ package backend
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"strconv"
+	"text/template"
+
 	"net/http"
 	"strings"
 	"time"
@@ -340,9 +342,44 @@ func BookingHandler(w http.ResponseWriter, r *http.Request) {
 
 	tmpl.ExecuteTemplate(w, "booking.html", data)
 }
+
+// Обработчик страницы бронирования
+func BookingPageHandler(w http.ResponseWriter, r *http.Request) {
+	posterID := r.URL.Query().Get("id")
+	if posterID == "" {
+		http.Error(w, "Не указан ID мероприятия", http.StatusBadRequest)
+		return
+	}
+
+	// Получаем минимальную цену для мероприятия
+	var minPrice int
+	err := db.QueryRow(`
+		SELECT MIN(price) 
+		FROM ticket 
+		WHERE id_poster = $1`, posterID).Scan(&minPrice)
+	if err != nil {
+		http.Error(w, "Ошибка получения данных о мероприятии", http.StatusInternalServerError)
+		return
+	}
+
+	// Формируем данные для шаблона
+	data := struct {
+		PosterID string
+		MinPrice int
+	}{
+		PosterID: posterID,
+		MinPrice: minPrice,
+	}
+
+	// Рендерим шаблон
+	tmpl := template.Must(template.ParseFiles("booking_simple.html"))
+	tmpl.Execute(w, data)
+}
+
+// Обработчик формы бронирования
 func BookHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -350,81 +387,55 @@ func BookHandler(w http.ResponseWriter, r *http.Request) {
 	posterID := r.FormValue("poster_id")
 	fullName := strings.TrimSpace(r.FormValue("full_name"))
 	email := strings.TrimSpace(r.FormValue("email"))
-	seatsStr := r.FormValue("selected_seats")
+	seatStr := r.FormValue("seat")
 
-	// Валидация данных
-	if posterID == "" || fullName == "" || seatsStr == "" {
+	// Валидация
+	if posterID == "" || fullName == "" || seatStr == "" {
 		http.Error(w, "Не все обязательные поля заполнены", http.StatusBadRequest)
 		return
 	}
 
-	// Разбиваем строку мест на массив
-	seats := strings.Split(seatsStr, ",")
+	seat, err := strconv.Atoi(seatStr)
+	if err != nil || seat <= 0 {
+		http.Error(w, "Некорректный номер места", http.StatusBadRequest)
+		return
+	}
 
-	// Начинаем транзакцию
-	tx, err := db.Begin()
+	// Проверяем доступность места
+	var isFree bool
+	err = db.QueryRow(`
+		SELECT ticket_owner_full_name IS NULL 
+		FROM ticket 
+		WHERE id_poster = $1 AND seat = $2`, posterID, seat).Scan(&isFree)
+
 	if err != nil {
-		log.Printf("Ошибка начала транзакции: %v", err)
-		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
-		return
-	}
-	defer tx.Rollback()
-
-	// Вставляем данные для каждого выбранного места
-	for _, seat := range seats {
-		_, err = tx.Exec(`
-            INSERT INTO ticket (id_poster, seat, price, ticket_owner_full_name, customer_email, booking_time)
-            VALUES ($1, $2, (SELECT price FROM ticket WHERE id_poster = $1 AND seat = $2), $3, $4, NOW())
-            ON CONFLICT (id_poster, seat) 
-            DO UPDATE SET 
-                ticket_owner_full_name = $3,
-                customer_email = $4,
-                booking_time = NOW()`,
-			posterID, seat, fullName, email)
-
-		if err != nil {
-			log.Printf("Ошибка бронирования места %s: %v", seat, err)
-			http.Error(w, "Ошибка при бронировании мест", http.StatusInternalServerError)
-			return
+		if err == sql.ErrNoRows {
+			http.Error(w, "Указанное место не существует", http.StatusBadRequest)
+		} else {
+			http.Error(w, "Ошибка проверки места", http.StatusInternalServerError)
 		}
-	}
-
-	// Фиксируем транзакцию
-	if err := tx.Commit(); err != nil {
-		log.Printf("Ошибка фиксации транзакции: %v", err)
-		http.Error(w, "Ошибка при завершении бронирования", http.StatusInternalServerError)
 		return
 	}
 
-	// Генерируем простой ответ об успехе
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Бронирование завершено</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                .success { 
-                    max-width: 600px; 
-                    margin: 0 auto; 
-                    padding: 20px; 
-                    border: 1px solid #4CAF50;
-                    background-color: #f8f9fa;
-                    border-radius: 5px;
-                    text-align: center;
-                }
-                h1 { color: #4CAF50; }
-            </style>
-        </head>
-        <body>
-            <div class="success">
-                <h1>Бронирование успешно завершено!</h1>
-                <p>Вы забронировали места: %s</p>
-                <p>На имя: %s</p>
-                <p><a href="/">Вернуться на главную</a></p>
-            </div>
-        </body>
-        </html>
-    `, strings.ReplaceAll(seatsStr, ",", ", "), fullName)
+	if !isFree {
+		http.Error(w, "Место уже занято", http.StatusConflict)
+		return
+	}
+
+	// Бронируем место
+	_, err = db.Exec(`
+		UPDATE ticket 
+		SET ticket_owner_full_name = $1, 
+		    customer_email = $2, 
+		    booking_time = NOW()
+		WHERE id_poster = $3 AND seat = $4`,
+		fullName, email, posterID, seat)
+
+	if err != nil {
+		http.Error(w, "Ошибка при бронировании", http.StatusInternalServerError)
+		return
+	}
+
+	// Перенаправляем на страницу успеха
+	http.Redirect(w, r, fmt.Sprintf("/success?seat=%d&name=%s", seat, fullName), http.StatusSeeOther)
 }

@@ -13,7 +13,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 1000px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -30,37 +30,6 @@
             border-radius: 0 0 8px 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 20px;
-        }
-        .seats-container {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 10px;
-            margin: 20px 0;
-        }
-        .seat {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .seat.free {
-            background-color: #e8f5e9;
-        }
-        .seat.free:hover {
-            background-color: #c8e6c9;
-        }
-        .seat.occupied {
-            background-color: #ffcdd2;
-            cursor: not-allowed;
-        }
-        .seat.selected {
-            background-color: #81c784;
-            color: white;
         }
         .booking-form {
             background: white;
@@ -82,6 +51,7 @@
             box-sizing: border-box;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-size: 16px;
         }
         button {
             background-color: #8b0000;
@@ -89,21 +59,16 @@
             border: none;
             cursor: pointer;
             font-size: 16px;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
+            margin-top: 10px;
         }
         .price-range {
             font-size: 18px;
             margin: 10px 0;
             color: #8b0000;
         }
-        .selected-seats {
-            margin: 15px 0;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 4px;
+        #total_price {
+            font-weight: bold;
+            font-size: 18px;
         }
     </style>
 </head>
@@ -115,29 +80,14 @@
             <p><strong>Дата и время:</strong> {{.StartTime.Format "02.01.2006 15:04"}}</p>
             <p><strong>Место проведения:</strong> {{.SceneName}}</p>
             <div class="price-range">
-                Цены: от {{.MinPrice}} до {{.MaxPrice}} руб.
+                Цена за место: {{.MinPrice}} руб.
             </div>
-        </div>
-
-        <div class="seats-container">
-            {{range .Seats}}
-            <div class="seat {{if .IsFree}}free{{else}}occupied{{end}}" 
-                 data-seat="{{.Seat}}" 
-                 data-price="{{.Price}}"
-                 {{if not .IsFree}}title="Занято: {{.OwnerName}}"{{end}}>
-                {{.Seat}}
-            </div>
-            {{end}}
-        </div>
-
-        <div class="selected-seats" id="selectedSeatsInfo">
-            Выберите места (кликните на свободные места)
         </div>
 
         <div class="booking-form">
             <form id="bookingForm" action="/book" method="POST">
                 <input type="hidden" name="poster_id" value="{{.PosterID}}">
-                <input type="hidden" name="selected_seats" id="selectedSeats" value="">
+                <input type="hidden" name="price" value="{{.MinPrice}}">
                 
                 <div class="form-group">
                     <label for="full_name">Ваше полное имя:</label>
@@ -150,66 +100,18 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="total_price">Итого к оплате:</label>
-                    <input type="text" id="total_price" value="0 руб." readonly>
+                    <label for="seat">Номер места:</label>
+                    <input type="number" id="seat" name="seat" min="1" max="100" required>
                 </div>
                 
-                <button type="submit" id="submitBtn" disabled>Забронировать</button>
+                <div class="form-group">
+                    <label for="total_price">Итого к оплате:</label>
+                    <input type="text" id="total_price" value="{{.MinPrice}} руб." readonly>
+                </div>
+                
+                <button type="submit">Забронировать</button>
             </form>
         </div>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const seats = document.querySelectorAll('.seat.free');
-            const selectedSeatsInput = document.getElementById('selectedSeats');
-            const selectedSeatsInfo = document.getElementById('selectedSeatsInfo');
-            const totalPriceInput = document.getElementById('total_price');
-            const submitBtn = document.getElementById('submitBtn');
-            
-            let selectedSeats = [];
-            let totalPrice = 0;
-
-            seats.forEach(seat => {
-                seat.addEventListener('click', function() {
-                    const seatNum = this.getAttribute('data-seat');
-                    const seatPrice = parseInt(this.getAttribute('data-price'));
-                    
-                    if (this.classList.contains('selected')) {
-                        // Удаляем место из выбранных
-                        this.classList.remove('selected');
-                        selectedSeats = selectedSeats.filter(s => s.num !== seatNum);
-                        totalPrice -= seatPrice;
-                    } else {
-                        // Добавляем место в выбранные
-                        this.classList.add('selected');
-                        selectedSeats.push({num: seatNum, price: seatPrice});
-                        totalPrice += seatPrice;
-                    }
-                    
-                    // Обновляем информацию
-                    updateSelectionInfo();
-                });
-            });
-
-            function updateSelectionInfo() {
-                if (selectedSeats.length === 0) {
-                    selectedSeatsInfo.textContent = 'Выберите места (кликните на свободные места)';
-                    selectedSeatsInput.value = '';
-                    totalPriceInput.value = '0 руб.';
-                    submitBtn.disabled = true;
-                } else {
-                    const seatsList = selectedSeats.map(s => s.num).join(', ');
-                    selectedSeatsInfo.innerHTML = `
-                        <strong>Выбранные места:</strong> ${seatsList}<br>
-                        <strong>Количество:</strong> ${selectedSeats.length}
-                    `;
-                    selectedSeatsInput.value = selectedSeats.map(s => s.num).join(',');
-                    totalPriceInput.value = `${totalPrice} руб.`;
-                    submitBtn.disabled = false;
-                }
-            }
-        });
-    </script>
 </body>
 </html>

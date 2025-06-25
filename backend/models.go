@@ -1,8 +1,33 @@
 package backend
 
 import (
+	"database/sql"
 	"time"
 )
+
+type Seat struct {
+	Seat   string
+	Price  int
+	IsFree bool
+}
+
+// Структура для хранения данных о билете
+type Ticket struct {
+	ID        int
+	Price     int
+	Seat      int
+	OwnerName sql.NullString
+	PosterID  int
+}
+type PageData struct {
+	PerformanceTitle string
+	StartTime        string
+	SceneName        string
+	MinPrice         int
+	MaxPrice         int
+	PosterID         string
+	Seats            []Seat
+}
 
 type Play struct {
 	ID     int
@@ -38,15 +63,6 @@ type Poster struct {
 	SceneID       int
 	DirectorID    int
 	PerformanceID int
-}
-
-type Ticket struct {
-	ID        int
-	RoleName  string
-	Price     int
-	Seat      int
-	OwnerName string
-	PosterID  int
 }
 
 type ActorRole struct {
