@@ -9,6 +9,16 @@ type Play struct {
 	Author string
 	Title  string
 }
+type BookingConfirmation struct {
+	OrderID          string
+	PerformanceTitle string
+	StartTime        time.Time
+	SceneName        string
+	Seats            []int
+	TotalPrice       int
+	CustomerName     string
+	CustomerEmail    string
+}
 
 type Director struct {
 	ID       int

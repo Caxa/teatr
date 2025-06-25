@@ -3,6 +3,7 @@ package backend
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -345,57 +346,85 @@ func BookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем данные из формы
 	posterID := r.FormValue("poster_id")
-	fullName := r.FormValue("full_name")
-	email := r.FormValue("email")
-	seats := r.FormValue("selected_seats")
+	fullName := strings.TrimSpace(r.FormValue("full_name"))
+	email := strings.TrimSpace(r.FormValue("email"))
+	seatsStr := r.FormValue("selected_seats")
 
-	if posterID == "" || fullName == "" || seats == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
+	// Валидация данных
+	if posterID == "" || fullName == "" || seatsStr == "" {
+		http.Error(w, "Не все обязательные поля заполнены", http.StatusBadRequest)
 		return
 	}
 
-	// Проверяем, что места еще свободны
-	var availableSeats int
-	err := db.QueryRow(`
-        SELECT COUNT(*) FROM ticket 
-        WHERE id_poster = $1 AND seat = ANY(string_to_array($2, ',')::int[]) 
-        AND ticket_owner_full_name IS NULL`, posterID, seats).Scan(&availableSeats)
+	// Разбиваем строку мест на массив
+	seats := strings.Split(seatsStr, ",")
 
-	if err != nil || availableSeats != len(strings.Split(seats, ",")) {
-		http.Error(w, "Некоторые места уже заняты. Пожалуйста, обновите страницу и выберите другие места.", http.StatusConflict)
-		return
-	}
-
-	// Бронируем места
-	_, err = db.Exec(`
-        UPDATE ticket 
-        SET ticket_owner_full_name = $1, booking_time = NOW()
-        WHERE id_poster = $2 AND seat = ANY(string_to_array($3, ',')::int[])`,
-		fullName, posterID, seats)
-
+	// Начинаем транзакцию
+	tx, err := db.Begin()
 	if err != nil {
-		http.Error(w, "Ошибка при бронировании: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Ошибка начала транзакции: %v", err)
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// Вставляем данные для каждого выбранного места
+	for _, seat := range seats {
+		_, err = tx.Exec(`
+            INSERT INTO ticket (id_poster, seat, price, ticket_owner_full_name, customer_email, booking_time)
+            VALUES ($1, $2, (SELECT price FROM ticket WHERE id_poster = $1 AND seat = $2), $3, $4, NOW())
+            ON CONFLICT (id_poster, seat) 
+            DO UPDATE SET 
+                ticket_owner_full_name = $3,
+                customer_email = $4,
+                booking_time = NOW()`,
+			posterID, seat, fullName, email)
+
+		if err != nil {
+			log.Printf("Ошибка бронирования места %s: %v", seat, err)
+			http.Error(w, "Ошибка при бронировании мест", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Фиксируем транзакцию
+	if err := tx.Commit(); err != nil {
+		log.Printf("Ошибка фиксации транзакции: %v", err)
+		http.Error(w, "Ошибка при завершении бронирования", http.StatusInternalServerError)
 		return
 	}
 
-	// Генерируем номер заказа
-	orderID := fmt.Sprintf("ORD-%d-%s", time.Now().Unix(), posterID)
-
-	// Отправляем подтверждение
+	// Генерируем простой ответ об успехе
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `
-        <h1>Бронирование успешно завершено!</h1>
-        <p>Номер вашего заказа: <strong>%s</strong></p>
-        <p>Забронированные места: %s</p>
-        <p>На имя: %s</p>
-        %s
-        <p><a href="/">Вернуться на главную</a></p>
-    `, orderID, seats, fullName,
-		func() string {
-			if email != "" {
-				return fmt.Sprintf(`<p>На email %s отправлено подтверждение.</p>`, email)
-			}
-			return ""
-		}())
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Бронирование завершено</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                .success { 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    padding: 20px; 
+                    border: 1px solid #4CAF50;
+                    background-color: #f8f9fa;
+                    border-radius: 5px;
+                    text-align: center;
+                }
+                h1 { color: #4CAF50; }
+            </style>
+        </head>
+        <body>
+            <div class="success">
+                <h1>Бронирование успешно завершено!</h1>
+                <p>Вы забронировали места: %s</p>
+                <p>На имя: %s</p>
+                <p><a href="/">Вернуться на главную</a></p>
+            </div>
+        </body>
+        </html>
+    `, strings.ReplaceAll(seatsStr, ",", ", "), fullName)
 }
