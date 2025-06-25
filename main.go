@@ -43,6 +43,8 @@ func registerHandlers() {
 	http.HandleFunc("/admin/create_actor", backend.CreateActorHandler)
 	http.HandleFunc("/admin/create_poster", backend.CreatePosterHandler)
 	http.HandleFunc("/admin/generate_tickets", backend.GenerateTicketsHandler)
+	http.HandleFunc("/admin/execute-sql", backend.ExecuteSQLHandler)
+
 }
 
 func getEnv(key, defaultValue string) string {

@@ -476,3 +476,78 @@ func PostersHandler(w http.ResponseWriter, r *http.Request) {
 		Posters:          posters,
 	})
 }
+func ExecuteSQLHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Получаем запрос из формы
+	query := r.FormValue("query")
+	if query == "" {
+		http.Error(w, "Пустой SQL запрос", http.StatusBadRequest)
+		return
+	}
+
+	// Выполняем запрос к БД
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Fprintf(w, `<div style="color: #e74c3c;">Ошибка: %s</div>`, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	// Получаем названия колонок
+	columns, err := rows.Columns()
+	if err != nil {
+		fmt.Fprintf(w, `<div style="color: #e74c3c;">Ошибка: %s</div>`, err.Error())
+		return
+	}
+
+	// Генерируем HTML таблицу с результатами
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, "<table>")
+
+	// Заголовки таблицы
+	fmt.Fprint(w, "<tr>")
+	for _, col := range columns {
+		fmt.Fprintf(w, "<th>%s</th>", col)
+	}
+	fmt.Fprint(w, "</tr>")
+
+	// Данные таблицы
+	values := make([]interface{}, len(columns))
+	pointers := make([]interface{}, len(columns))
+	for i := range values {
+		pointers[i] = &values[i]
+	}
+
+	hasRows := false
+	for rows.Next() {
+		hasRows = true
+		if err := rows.Scan(pointers...); err != nil {
+			fmt.Fprintf(w, `<div style="color: #e74c3c;">Ошибка: %s</div>`, err.Error())
+			return
+		}
+
+		fmt.Fprint(w, "<tr>")
+		for _, val := range values {
+			strVal := ""
+			if val != nil {
+				if b, ok := val.([]byte); ok {
+					strVal = string(b)
+				} else {
+					strVal = fmt.Sprintf("%v", val)
+				}
+			}
+			fmt.Fprintf(w, "<td>%s</td>", strVal)
+		}
+		fmt.Fprint(w, "</tr>")
+	}
+
+	if !hasRows {
+		fmt.Fprintf(w, `<tr><td colspan="%d">Запрос выполнен успешно, но не вернул данных</td></tr>`, len(columns))
+	}
+
+	fmt.Fprint(w, "</table>")
+}
